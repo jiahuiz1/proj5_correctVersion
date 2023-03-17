@@ -7,6 +7,8 @@ import (
 	"log"
 	"os"
 	"sync"
+	"net"
+	"google.golang.org/grpc"
 )
 
 type RaftConfig struct {
@@ -46,6 +48,15 @@ func NewRaftServer(id int64, config RaftConfig) (*RaftSurfstore, error) {
 		log:            make([]*UpdateOperation, 0),
 		isCrashed:      false,
 		isCrashedMutex: &isCrashedMutex,
+		// Added for discussion
+		id:             id,
+		peers:          config.RaftAddrs,
+		pendingCommits: make([]*chan bool, 0),
+		commitIndex:    -1,
+		lastApplied:    -1,
+		nextIndex: 		make([]int64, 0),
+		matchIndex: 	make([]int64, 0),
+
 	}
 
 	return &server, nil
@@ -53,5 +64,13 @@ func NewRaftServer(id int64, config RaftConfig) (*RaftSurfstore, error) {
 
 // TODO Start up the Raft server and any services here
 func ServeRaftServer(server *RaftSurfstore) error {
-    panic("todo")
+	grpcServer := grpc.NewServer()
+	RegisterRaftSurfstoreServer(grpcServer, server)
+
+	l, e := net.Listen("tcp", server.peers[server.id])
+	if e != nil {
+		return e
+	}
+
+	return grpcServer.Serve(l)
 }
