@@ -138,6 +138,7 @@ func TestRaftFollowersGetUpdates(t *testing.T) {
 }
 
 
+
 func TestRaftLogsConsistent(t *testing.T) {
 	t.Log("leader1 gets a request while a minority of the cluster is down. leader1 crashes. the other crashed nodes are restored. leader2 gets a request. leader1 is restored.")
 	cfgPath := "./config_files/3nodes.txt"

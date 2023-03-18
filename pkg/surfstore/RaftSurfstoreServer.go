@@ -151,19 +151,19 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 	go s.sendToAllFollowersInParallel(ctx)
 
 	// keep trying indefinitely (even after responding) ** rely on sendheartbeat
-	go func(){
-		for {
-			var e *emptypb.Empty = new(emptypb.Empty)
-			succ, _ := s.SendHeartbeat(ctx, e) // check if this is correct for sending indefinitely
-			// fmt.Println(succ.Flag)
-			if succ.Flag{
-				fmt.Println("Success")
-				lateIndex := len(s.pendingCommits) - 1
-				*s.pendingCommits[lateIndex] <- true
-				return
-			}
-		}
-	}()
+	// go func(){
+	// 	for {
+	// 		var e *emptypb.Empty = new(emptypb.Empty)
+	// 		succ, _ := s.SendHeartbeat(ctx, e) // check if this is correct for sending indefinitely
+	// 		// fmt.Println(succ.Flag)
+	// 		if succ.Flag{
+	// 			fmt.Println("Success")
+	// 			lateIndex := len(s.pendingCommits) - 1
+	// 			*s.pendingCommits[lateIndex] <- true
+	// 			return
+	// 		}
+	// 	}
+	// }()
 
 	// commit the entry once majority of followers have it in their log
 	commit := <-commitChan
@@ -285,6 +285,12 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	// if fail, decrement nextIndex, retry
 	if erra != nil {
 		fmt.Println(erra.Error())
+
+		// change this ?
+		if erra == ERR_SERVER_CRASHED {
+			responses <- false
+			return
+		}
 	}
 
 	if res == nil {
