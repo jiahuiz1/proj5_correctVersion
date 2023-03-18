@@ -158,7 +158,7 @@ func (surfClient *RPCClient) GetFileInfoMap(serverFileInfoMap *map[string]*FileM
 }
 
 func (surfClient *RPCClient) UpdateFile(fileMetaData *FileMetaData, latestVersion *int32) error {
-	for _, addr := range surfClient.MetaStoreAddrs{
+	for idx, addr := range surfClient.MetaStoreAddrs{
 		conn, err := grpc.Dial(addr, grpc.WithInsecure())
 		if err != nil {
 			return err
@@ -169,12 +169,18 @@ func (surfClient *RPCClient) UpdateFile(fileMetaData *FileMetaData, latestVersio
 		defer cancel()
 		v, err := c.UpdateFile(ctx, fileMetaData)
 		if err != nil{
-			if err == ERR_NOT_LEADER{
+			// if err == ERR_NOT_LEADER{
+			// 	conn.Close()
+			// 	continue
+			// }
+			// conn.Close()
+			// return err
+			if idx == len(surfClient.MetaStoreAddrs) {
 				conn.Close()
-				continue
+				return err
 			}
 			conn.Close()
-			return err
+			continue
 		}
 		*latestVersion = v.Version
 	

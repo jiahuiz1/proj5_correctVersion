@@ -153,6 +153,7 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 
 	if s.isCrashed{
 		fmt.Println("updateFile request : crashed")
+		return nil, ERR_SERVER_CRASHED
 	}
     // append entry to our log
 	s.log = append(s.log, &UpdateOperation{
