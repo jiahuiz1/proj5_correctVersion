@@ -188,6 +188,7 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 
 	// once committed, apply to the state machine
 	if commit {
+		fmt.Printf("Commit for Server %d successfully\n", s.id)
 		return s.metaStore.UpdateFile(ctx, filemeta)
 	}
     return nil, nil
@@ -251,14 +252,16 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	var prevLogTerm int64
 	var entries []*UpdateOperation
 
-	fmt.Println("Index for debug: ", index)
-
 	if s.commitIndex < 0{
 		prevLogIndex = -1
 		prevLogTerm = -1
 	} else{
 		prevLogIndex = s.nextIndex[index] - 1
-		prevLogTerm = s.log[prevLogIndex].Term
+		if prevLogIndex < 0 {
+			prevLogTerm = -1
+		} else {
+			prevLogTerm = s.log[prevLogIndex].Term
+		}
 	}
 
 	// TODO check all errors
@@ -314,6 +317,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 		responses <- false
 		return
 	}
+	// fmt.Println("Test!!!:", res.Success)
 
 	if res == nil {
 		fmt.Println("Append Entries result nil")
@@ -341,9 +345,14 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInput) (*AppendEntryOutput, error) {
 	// fmt.Println("Server: ", s.id)
 	if s.isCrashed {
-		fmt.Printf("Appendentries Server %d Crashed", s.id)
+		fmt.Printf("Appendentries Server %d Crashed\n", s.id)
 		// return nil, ERR_SERVER_CRASHED
-		return nil, nil
+		return &AppendEntryOutput{
+			ServerId: s.id,
+			Term: s.term,
+			Success: false,
+			MatchedIndex: 0, // may change this
+		}, ERR_SERVER_CRASHED
 	}
 
 	// 1
@@ -451,7 +460,7 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 		fmt.Printf("Sendheartbeat Server %d Crashed", s.id)
 		//fmt.Println(error(ERR_SERVER_CRASHED))
 		// return &Success{Flag: false}, ERR_SERVER_CRASHED
-		return nil, nil
+		return nil, ERR_SERVER_CRASHED
 	}
 
 	if !s.isLeader {
@@ -464,7 +473,6 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 		if int64(idx) == s.id {
 			continue
 		}
-
 		var prevLogIndex int64 
 		var prevLogTerm int64
 		var entries []*UpdateOperation
@@ -474,7 +482,11 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 			prevLogTerm = -1
 		} else{
 			prevLogIndex = s.nextIndex[idx] - 1
-			prevLogTerm = s.log[prevLogIndex].Term
+			if prevLogIndex < 0 {
+				prevLogTerm = -1
+			} else {
+				prevLogTerm = s.log[prevLogIndex].Term
+			}
 		}
 
 		// TODO check all errors
@@ -512,12 +524,11 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 			Entries:      entries,
 			LeaderCommit: s.commitIndex,
 		}
-
-		res, _ := client.AppendEntries(ctx, &dummyAppendEntriesInput)
-		// if errc != nil{
-		// 	fmt.Println("Append Entries error:", errc.Error())
-		// 	success = false
-		// }
+		res, errc := client.AppendEntries(ctx, &dummyAppendEntriesInput)
+		if errc != nil{
+			fmt.Println("Append Entries error:", errc.Error())
+			continue
+		}
 		if res == nil {
 			//fmt.Println("Append Entries result nil")
 			success = false

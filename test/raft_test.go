@@ -183,6 +183,7 @@ func TestRaftLogsConsistent(t *testing.T) {
 	if err != nil || version.Version != 1 {
 		t.FailNow()
 	}
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
 
 	test.Clients[leaderIdx].Crash(test.Context, &emptypb.Empty{})
 	test.Clients[2].Restore(test.Context, &emptypb.Empty{})
