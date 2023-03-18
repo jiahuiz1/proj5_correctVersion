@@ -101,6 +101,7 @@ func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty
 
 func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashes) (*BlockStoreMap, error) {
 	if !s.isLeader{
+		fmt.Println("Test Not leader")
 		return nil, ERR_NOT_LEADER
 	}
 
@@ -109,6 +110,7 @@ func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashe
 
 	checkResult := <- check
 	if checkResult {
+		fmt.Println("majority of servers working")
 		res, err := s.metaStore.GetBlockStoreMap(ctx, hashes)
 		return res, err
 	}

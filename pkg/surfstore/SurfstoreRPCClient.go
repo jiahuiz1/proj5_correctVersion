@@ -105,6 +105,7 @@ func (surfClient *RPCClient) GetBlockHashes(blockStoreAddr string, blockHashes *
 
 func (surfClient *RPCClient) GetFileInfoMap(serverFileInfoMap *map[string]*FileMetaData) error {
 	for _, addr := range surfClient.MetaStoreAddrs {
+		fmt.Println("RAFT server address: ",addr)
 		conn, err := grpc.Dial(addr, grpc.WithInsecure())
 		if err != nil {
 			fmt.Println("dial error: ", err.Error())
