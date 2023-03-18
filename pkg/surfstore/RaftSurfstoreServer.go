@@ -251,6 +251,8 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	var prevLogTerm int64
 	var entries []*UpdateOperation
 
+	fmt.Println("Index for debug: ", index)
+
 	if s.commitIndex < 0{
 		prevLogIndex = -1
 		prevLogTerm = -1
@@ -340,7 +342,8 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 	// fmt.Println("Server: ", s.id)
 	if s.isCrashed {
 		fmt.Printf("Appendentries Server %d Crashed", s.id)
-		return nil, ERR_SERVER_CRASHED
+		// return nil, ERR_SERVER_CRASHED
+		return nil, nil
 	}
 
 	// 1
@@ -418,7 +421,8 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
 	if s.isCrashed {
 		fmt.Printf("Set Leader Server %d Crashed", s.id)
-		return &Success{Flag: false}, ERR_SERVER_CRASHED // check if this is correct
+		//return &Success{Flag: false}, ERR_SERVER_CRASHED // check if this is correct
+		return nil, nil
 	}
 	
 	fmt.Printf("Server %d is the leader\n", s.id)
@@ -446,7 +450,8 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 	if s.isCrashed {
 		fmt.Printf("Sendheartbeat Server %d Crashed", s.id)
 		//fmt.Println(error(ERR_SERVER_CRASHED))
-		return &Success{Flag: false}, ERR_SERVER_CRASHED
+		// return &Success{Flag: false}, ERR_SERVER_CRASHED
+		return nil, nil
 	}
 
 	if !s.isLeader {
