@@ -90,7 +90,7 @@ func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty
 		fmt.Println("getfileinfomap : crashed")
 		// return nil, ERR_SERVER_CRASHED
 	}
-
+	fmt.Printf("Server %d get file info map\n", s.id)
 	check := make(chan bool)
 	go s.checkForAllServers(ctx, check)
 
@@ -112,7 +112,7 @@ func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashe
 		fmt.Println("getblockstoremap : crashed")
 		// return nil, ERR_SERVER_CRASHED
 	}
-
+	fmt.Printf("Server %d get block store map\n", s.id)
 	check := make(chan bool)
 	go s.checkForAllServers(ctx, check)
 
@@ -133,7 +133,7 @@ func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.E
 	if s.isCrashed{
 		fmt.Println("getblockstoreaddres : crashed")
 	}
-	
+	fmt.Printf("Server %d getblockstore addresses\n", s.id)
 	check := make(chan bool)
 	go s.checkForAllServers(ctx, check)
 
@@ -155,6 +155,7 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 		fmt.Println("updateFile request : crashed")
 		return nil, ERR_SERVER_CRASHED
 	}
+	fmt.Printf("Server %d update file\n", s.id)
     // append entry to our log
 	s.log = append(s.log, &UpdateOperation{
 		Term:         s.term,
