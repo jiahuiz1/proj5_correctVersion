@@ -309,7 +309,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 // 5. If leaderCommit > commitIndex, set commitIndex = min(leaderCommit, index
 // of last new entry)
 func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInput) (*AppendEntryOutput, error) {
-	fmt.Println("Server: ", s.id)
+	// fmt.Println("Server: ", s.id)
 	if s.isCrashed {
 		return nil, ERR_SERVER_CRASHED
 	}
@@ -367,7 +367,7 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 		s.commitIndex = int64(math.Min(float64(input.LeaderCommit), float64(len(s.log)-1)))
 	}
 
-	fmt.Println("Check log length: ", len(s.log))
+	// fmt.Println("Check log length: ", len(s.log))
 
 	// TODO actually check entries
 
@@ -391,6 +391,7 @@ func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Succe
 		return nil, ERR_SERVER_CRASHED // check if this is correct
 	}
 	
+	fmt.Printf("Server %d is the leader\n", s.id)
 	s.isLeaderMutex.Lock()
 	defer s.isLeaderMutex.Unlock()
 	s.isLeader = true

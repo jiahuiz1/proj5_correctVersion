@@ -83,7 +83,7 @@ func ClientSync(client RPCClient) {
 	fmt.Println("------------------------")
 	PrintMetaMap(localIndex)
 
-	// download FileInfoMap fro the remote index
+	// download FileInfoMap from the remote index
 	remoteIndex := make(map[string]*FileMetaData)
 	err = client.GetFileInfoMap(&remoteIndex)
 	if err != nil {

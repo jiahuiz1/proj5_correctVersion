@@ -120,6 +120,7 @@ func (surfClient *RPCClient) GetFileInfoMap(serverFileInfoMap *map[string]*FileM
 		fm, err := c.GetFileInfoMap(ctx, e)
 		if err != nil{
 			if err == ERR_NOT_LEADER {
+				fmt.Println("Not leader")
 				conn.Close() // think about this
 				continue
 			}
