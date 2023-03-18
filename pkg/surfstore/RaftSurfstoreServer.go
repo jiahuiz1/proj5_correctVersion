@@ -337,7 +337,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInput) (*AppendEntryOutput, error) {
 	// fmt.Println("Server: ", s.id)
 	if s.isCrashed {
-		fmt.Println("Crashed")
+		fmt.Printf("Appendentries Server %d Crashed", s.id)
 		return nil, nil
 	}
 
@@ -415,7 +415,7 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 
 func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
 	if s.isCrashed {
-		fmt.Println("Crashed")
+		fmt.Printf("Set Leader Server %d Crashed", s.id)
 		return &Success{Flag: false}, nil // check if this is correct
 	}
 	
@@ -442,7 +442,7 @@ func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Succe
 
 func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
 	if s.isCrashed {
-		fmt.Println("Crashed")
+		fmt.Printf("Sendheartbeat Server %d Crashed", s.id)
 		//fmt.Println(error(ERR_SERVER_CRASHED))
 		return &Success{Flag: false}, nil
 	}
