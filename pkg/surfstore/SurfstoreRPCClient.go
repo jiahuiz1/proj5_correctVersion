@@ -104,7 +104,7 @@ func (surfClient *RPCClient) GetBlockHashes(blockStoreAddr string, blockHashes *
 }
 
 func (surfClient *RPCClient) GetFileInfoMap(serverFileInfoMap *map[string]*FileMetaData) error {
-	for _, addr := range surfClient.MetaStoreAddrs {
+	for idx, addr := range surfClient.MetaStoreAddrs {
 		fmt.Println("RAFT server address: ",addr)
 		conn, err := grpc.Dial(addr, grpc.WithInsecure())
 		if err != nil {
@@ -120,14 +120,26 @@ func (surfClient *RPCClient) GetFileInfoMap(serverFileInfoMap *map[string]*FileM
 		// fmt.Println(e)
 		fm, err := c.GetFileInfoMap(ctx, e)
 		if err != nil{
-			if err == ERR_NOT_LEADER {
-				fmt.Println("Not leader")
-				conn.Close() // think about this
-				continue
+			if idx == len(surfClient.MetaStoreAddrs) - 1{
+				conn.Close()
+				return err
 			}
 			conn.Close()
-			fmt.Println("client method error: ", err.Error())
-			return err
+			continue
+			// if err.Error() == "Server is not the leader" {
+			// 	fmt.Println("Not leader")
+			// 	conn.Close() // think about this
+			// 	continue
+			// } else if err.Error() == "Server is crashed."{
+			// 	fmt.Println("Debug test")
+			// 	conn.Close()
+			// 	continue
+			// } 
+			// else {
+			// 	conn.Close()
+			// 	fmt.Println("client method error: ", err.Error())
+			// 	return err
+			// }
 		}
 		*serverFileInfoMap = fm.FileInfoMap
 	
@@ -158,7 +170,7 @@ func (surfClient *RPCClient) GetFileInfoMap(serverFileInfoMap *map[string]*FileM
 }
 
 func (surfClient *RPCClient) UpdateFile(fileMetaData *FileMetaData, latestVersion *int32) error {
-	for _, addr := range surfClient.MetaStoreAddrs{
+	for idx, addr := range surfClient.MetaStoreAddrs{
 		conn, err := grpc.Dial(addr, grpc.WithInsecure())
 		if err != nil {
 			return err
@@ -169,12 +181,18 @@ func (surfClient *RPCClient) UpdateFile(fileMetaData *FileMetaData, latestVersio
 		defer cancel()
 		v, err := c.UpdateFile(ctx, fileMetaData)
 		if err != nil{
-			if err == ERR_NOT_LEADER{
+			if idx == len(surfClient.MetaStoreAddrs) - 1{
 				conn.Close()
-				continue
+				return err
 			}
 			conn.Close()
-			return err
+			continue
+			// if err == ERR_NOT_LEADER{
+			// 	conn.Close()
+			// 	continue
+			// }
+			// conn.Close()
+			// return err
 		}
 		*latestVersion = v.Version
 	
@@ -201,7 +219,7 @@ func (surfClient *RPCClient) UpdateFile(fileMetaData *FileMetaData, latestVersio
 }
 
 func (surfClient *RPCClient) GetBlockStoreMap(blockHashesIn []string, blockStoreMap *map[string][]string) error {
-	for _, addr := range surfClient.MetaStoreAddrs {
+	for idx, addr := range surfClient.MetaStoreAddrs {
 		conn, err := grpc.Dial(addr, grpc.WithInsecure())
 		if err != nil {
 			return err
@@ -210,14 +228,21 @@ func (surfClient *RPCClient) GetBlockStoreMap(blockHashesIn []string, blockStore
 	
 		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
-		bm, err := c.GetBlockStoreMap(ctx, &BlockHashes{Hashes: blockHashesIn})
-		if err != nil{
-			if err == ERR_NOT_LEADER{
+		bm, errc := c.GetBlockStoreMap(ctx, &BlockHashes{Hashes: blockHashesIn})
+		if errc != nil{
+			if idx == len(surfClient.MetaStoreAddrs) - 1{
 				conn.Close()
-				continue
-			} 
+				return err
+			}
 			conn.Close()
-			return err
+			continue
+			// fmt.Println("Debug")
+			// if errc == ERR_NOT_LEADER{
+			// 	conn.Close()
+			// 	continue
+			// } 
+			// conn.Close()
+			// return errc
 		}
 		
 		bmModify := make(map[string][]string)
@@ -253,7 +278,7 @@ func (surfClient *RPCClient) GetBlockStoreMap(blockHashesIn []string, blockStore
 }
 
 func (surfClient *RPCClient) GetBlockStoreAddrs(blockStoreAddrs *[]string) error {
-	for _, addr := range surfClient.MetaStoreAddrs {
+	for idx, addr := range surfClient.MetaStoreAddrs {
 		conn, err := grpc.Dial(addr, grpc.WithInsecure())
 		if err != nil {
 			return err
@@ -265,12 +290,18 @@ func (surfClient *RPCClient) GetBlockStoreAddrs(blockStoreAddrs *[]string) error
 		var e *emptypb.Empty = new(emptypb.Empty)
 		ba, err := c.GetBlockStoreAddrs(ctx, e)
 		if err != nil{
-			if err == ERR_NOT_LEADER {
+			if idx == len(surfClient.MetaStoreAddrs) - 1{
 				conn.Close()
-				continue
+				return err
 			}
 			conn.Close()
-			return err
+			continue
+			// if err == ERR_NOT_LEADER {
+			// 	conn.Close()
+			// 	continue
+			// }
+			// conn.Close()
+			// return err
 		}
 		*blockStoreAddrs = ba.BlockStoreAddrs
 	

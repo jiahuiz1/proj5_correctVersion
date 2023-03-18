@@ -145,13 +145,17 @@ func TestRaftServerIsCrashable(t *testing.T){
 	defer EndTest(test)
 
 	leaderIdx := 0
+	fileMeta1 := &surfstore.FileMetaData{
+		Filename:      "testfile1",
+		Version:       1,
+		BlockHashList: nil,
+	}
 
 	test.Clients[leaderIdx].SetLeader(test.Context, &emptypb.Empty{})
 	test.Clients[leaderIdx].Crash(test.Context, &emptypb.Empty{})
 
-	_, err := test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
-
-	if err != nil {
+	_, err := test.Clients[leaderIdx].UpdateFile(test.Context, fileMeta1)
+	if err == nil {
 		fmt.Println("test:", err.Error())
 		t.Fatalf("Server should return ERR_SERVER_CRASHED")
 	}

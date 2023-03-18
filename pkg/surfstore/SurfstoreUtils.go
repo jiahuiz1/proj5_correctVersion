@@ -11,12 +11,12 @@ import (
 
 // Implement the logic for a client syncing with the server here.
 func ClientSync(client RPCClient) {
-	var blockStoreAddrs []string
-	errb := client.GetBlockStoreAddrs(&blockStoreAddrs) // change blockstoreaddr to blockstoreaddrs
+	// var blockStoreAddrs []string
+	// errb := client.GetBlockStoreAddrs(&blockStoreAddrs) // change blockstoreaddr to blockstoreaddrs
 
-	if errb != nil{
-		fmt.Println(errb.Error())
-	}
+	// if errb != nil{
+	// 	fmt.Println(errb.Error())
+	// }
 
 	cur, errc := os.Getwd()
 	if errc != nil{

@@ -88,7 +88,7 @@ func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty
 	}
 	if s.isCrashed{
 		fmt.Println("getfileinfomap : crashed")
-		// return nil, ERR_SERVER_CRASHED
+		return nil, ERR_SERVER_CRASHED
 	}
 
 	check := make(chan bool)
@@ -108,9 +108,9 @@ func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashe
 		fmt.Println("Test Not leader")
 		return nil, ERR_NOT_LEADER
 	}
-	if s.isCrashed{
+	if s.isLeader && s.isCrashed{
 		fmt.Println("getblockstoremap : crashed")
-		// return nil, ERR_SERVER_CRASHED
+		return nil, ERR_SERVER_CRASHED
 	}
 
 	check := make(chan bool)
@@ -131,7 +131,8 @@ func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.E
 		return nil, ERR_NOT_LEADER
 	}
 	if s.isCrashed{
-		fmt.Println("getblockstoreaddres : crashed")
+		fmt.Printf("Server %d getblockstoreaddres : crashed", s.id)
+		return nil, ERR_SERVER_CRASHED
 	}
 	
 	check := make(chan bool)
@@ -153,6 +154,7 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 
 	if s.isCrashed{
 		fmt.Println("updateFile request : crashed")
+		return nil, ERR_SERVER_CRASHED
 	}
     // append entry to our log
 	s.log = append(s.log, &UpdateOperation{
@@ -334,8 +336,8 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInput) (*AppendEntryOutput, error) {
 	// fmt.Println("Server: ", s.id)
 	if s.isCrashed {
-		fmt.Println("Crashed")
-		return nil, nil
+		fmt.Printf("Server %d Crashed", s.id)
+		return nil, ERR_SERVER_CRASHED
 	}
 
 	// 1
@@ -412,8 +414,8 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 
 func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
 	if s.isCrashed {
-		fmt.Println("Crashed")
-		return &Success{Flag: false}, nil // check if this is correct
+		fmt.Printf("Server %d Crashed", s.id)
+		return &Success{Flag: false}, ERR_SERVER_CRASHED // check if this is correct
 	}
 	
 	fmt.Printf("Server %d is the leader\n", s.id)
@@ -439,9 +441,9 @@ func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Succe
 
 func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
 	if s.isCrashed {
-		fmt.Println("Crashed")
+		fmt.Printf("Server %d Crashed", s.id)
 		//fmt.Println(error(ERR_SERVER_CRASHED))
-		return &Success{Flag: false}, nil
+		return &Success{Flag: false}, ERR_SERVER_CRASHED
 	}
 
 	if !s.isLeader {
