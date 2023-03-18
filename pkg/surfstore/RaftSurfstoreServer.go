@@ -319,6 +319,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInput) (*AppendEntryOutput, error) {
 	// fmt.Println("Server: ", s.id)
 	if s.isCrashed {
+		fmt.Println("Crashed")
 		return nil, ERR_SERVER_CRASHED
 	}
 
@@ -396,6 +397,7 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 
 func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
 	if s.isCrashed {
+		fmt.Println("Crashed")
 		return &Success{Flag: false}, ERR_SERVER_CRASHED // check if this is correct
 	}
 	
