@@ -32,44 +32,105 @@ type RaftSurfstore struct {
 	UnimplementedRaftSurfstoreServer
 }
 
+func (s *RaftSurfstore) checkForAllServers(ctx context.Context, check chan bool){
+	totalWork := 0
+	totalChecks := 0
+	responses := make(chan bool, len(s.peers))
+
+	for {
+		for idx, addr := range s.peers {
+			if int64(idx) == s.id && !s.isCrashed{
+				responses <- true
+				continue
+			}
+			go s.checkFollower(ctx, addr, responses, idx)
+		}
+
+
+		for {
+			result := <- responses
+			totalChecks++
+			if result {
+				totalWork++
+			}
+			if totalChecks == len(s.peers){
+				break
+			}
+		}
+
+		if totalWork > len(s.peers)/2{
+			check <- true
+			return
+		}
+	}
+}
+
+func (s *RaftSurfstore) checkFollower(ctx context.Context, addr string, responses chan bool, idx int){
+	conn, err := grpc.Dial(addr, grpc.WithInsecure())
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	client := NewRaftSurfstoreClient(conn)
+
+	var e *emptypb.Empty = new(emptypb.Empty)
+	_, errs := client.SendHeartbeat(ctx, e)
+	if errs == ERR_SERVER_CRASHED {
+		responses <- false
+	} else {
+		responses <- true
+	}
+}
+
+
 func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty) (*FileInfoMap, error) {
 	if !s.isLeader{
 		return nil, ERR_NOT_LEADER
 	}
 
-	// check := make(chan bool)
-	// majority := 0
-	// for idx, addr := range s.peers {
-	// 	if int64(idx) == s.id {
-	// 		continue
-	// 	}
-	// 	// check if majority of servers are working
-	// 	// if so, return correct answer
-	// 	// if majority are crashed, block until majority recover
-	// 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
-	// 	client := NewRaftSurfstoreClient(conn)
-	// }
-	res, err := s.metaStore.GetFileInfoMap(ctx, empty)
-	return res, err
-    // return nil, nil
+	check := make(chan bool)
+	go s.checkForAllServers(ctx, check)
+
+	checkResult := <- check
+	if checkResult {
+		res, err := s.metaStore.GetFileInfoMap(ctx, empty)
+		return res, err
+	}
+
+    return nil, nil
 }
 
 func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashes) (*BlockStoreMap, error) {
 	if !s.isLeader{
 		return nil, ERR_NOT_LEADER
 	}
-	res, err := s.metaStore.GetBlockStoreMap(ctx, hashes)
-    return res, err
-	// return nil, nil
+
+	check := make(chan bool)
+	go s.checkForAllServers(ctx, check)
+
+	checkResult := <- check
+	if checkResult {
+		res, err := s.metaStore.GetBlockStoreMap(ctx, hashes)
+		return res, err
+	}
+
+	return nil, nil
 }
 
 func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.Empty) (*BlockStoreAddrs, error) {
 	if !s.isLeader{
 		return nil, ERR_NOT_LEADER
 	}
-    res, err := s.metaStore.GetBlockStoreAddrs(ctx, empty)
-	return res, err
-	//return nil, nil
+
+	check := make(chan bool)
+	go s.checkForAllServers(ctx, check)
+
+	checkResult := <- check
+	if checkResult {
+		res, err := s.metaStore.GetBlockStoreAddrs(ctx, empty)
+		return res, err
+	}
+
+	return nil, nil
 }
 
 func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) (*Version, error) {
@@ -164,9 +225,6 @@ func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context) {
 	}
 }
 
-func (s *RaftSurfstore) checkCrashed() bool {
-	return s.isCrashed
-}
 
 func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, responses chan bool, index int) {
 	var prevLogIndex int64 
@@ -354,6 +412,10 @@ func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Succe
 }
 
 func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
+	if s.isCrashed {
+		return nil, ERR_SERVER_CRASHED 
+	}
+
 	if !s.isLeader {
 		return &Success{Flag: false}, ERR_NOT_LEADER;
 	}

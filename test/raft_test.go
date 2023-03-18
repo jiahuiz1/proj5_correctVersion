@@ -4,6 +4,7 @@ import (
 	"cse224/proj5/pkg/surfstore"
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"testing"
+	"time"
 )
 
 func TestRaftSetLeader(t *testing.T) {
@@ -132,6 +133,121 @@ func TestRaftFollowersGetUpdates(t *testing.T) {
 
 		if err != nil {
 			t.Fatalf("Error checking state for server %d: %s", idx, err.Error())
+		}
+	}
+}
+
+
+func TestRaftLogsConsistent(t *testing.T) {
+	t.Log("leader1 gets a request while a minority of the cluster is down. leader1 crashes. the other crashed nodes are restored. leader2 gets a request. leader1 is restored.")
+	cfgPath := "./config_files/3nodes.txt"
+	test := InitTest(cfgPath)
+	defer EndTest(test)
+
+	leaderIdx := 0
+	fileMeta1 := &surfstore.FileMetaData{
+		Filename:      "testfile1",
+		Version:       1,
+		BlockHashList: nil,
+	}
+	fileMeta2 := &surfstore.FileMetaData{
+		Filename:      "testfile2",
+		Version:       1,
+		BlockHashList: nil,
+	}
+	test.Clients[leaderIdx].SetLeader(test.Context, &emptypb.Empty{})
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+
+	test.Clients[2].Crash(test.Context, &emptypb.Empty{})
+
+	version, err := test.Clients[leaderIdx].UpdateFile(test.Context, fileMeta1)
+	if err != nil || version.Version != 1 {
+		t.FailNow()
+	}
+
+	test.Clients[leaderIdx].Crash(test.Context, &emptypb.Empty{})
+	test.Clients[2].Restore(test.Context, &emptypb.Empty{})
+	leaderIdx = 1
+	test.Clients[leaderIdx].SetLeader(test.Context, &emptypb.Empty{})
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+	v2, err := test.Clients[leaderIdx].UpdateFile(test.Context, fileMeta2)
+	if err != nil || v2.Version != 1 {
+		t.FailNow()
+	}
+
+	test.Clients[0].Restore(test.Context, &emptypb.Empty{})
+
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+
+	goldenMeta := make(map[string]*surfstore.FileMetaData)
+	goldenMeta[fileMeta1.Filename] = fileMeta1
+	goldenMeta[fileMeta2.Filename] = fileMeta2
+	goldenLog := make([]*surfstore.UpdateOperation, 0)
+
+	goldenLog = append(goldenLog, &surfstore.UpdateOperation{
+		Term:         1,
+		FileMetaData: fileMeta1,
+	})
+	goldenLog = append(goldenLog, &surfstore.UpdateOperation{
+		Term:         2,
+		FileMetaData: fileMeta2,
+	})
+
+	term := int64(2)
+	for idx, server := range test.Clients {
+		_, err := CheckInternalState(nil, &term, goldenLog, goldenMeta, server, test.Context)
+		if err != nil {
+			t.Fatalf("Error checking state for server %d: %s", idx, err.Error())
+		}
+	}
+}
+
+func TestRaftNewLeaderPushesUpdates(t *testing.T) {
+	t.Log("leader1 gets a request while the majority of the cluster is down. leader1 crashes. the other nodes come back. leader2 is elected")
+	cfgPath := "./config_files/5nodes.txt"
+	test := InitTest(cfgPath)
+	defer EndTest(test)
+	leaderIdx := 0
+	fileMeta1 := &surfstore.FileMetaData{
+		Filename:      "testfile1",
+		Version:       1,
+		BlockHashList: nil,
+	}
+	test.Clients[leaderIdx].SetLeader(test.Context, &emptypb.Empty{})
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+
+	test.Clients[1].Crash(test.Context, &emptypb.Empty{})
+	test.Clients[2].Crash(test.Context, &emptypb.Empty{})
+	test.Clients[3].Crash(test.Context, &emptypb.Empty{})
+
+	go test.Clients[leaderIdx].UpdateFile(test.Context, fileMeta1)
+	// test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+	time.Sleep(100 * time.Millisecond)
+
+	test.Clients[leaderIdx].Crash(test.Context, &emptypb.Empty{})
+	test.Clients[1].Restore(test.Context, &emptypb.Empty{})
+	test.Clients[2].Restore(test.Context, &emptypb.Empty{})
+	test.Clients[3].Restore(test.Context, &emptypb.Empty{})
+
+	leaderIdx = 4
+	test.Clients[leaderIdx].SetLeader(test.Context, &emptypb.Empty{})
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+
+	goldenMeta := make(map[string]*surfstore.FileMetaData)
+	goldenLog := make([]*surfstore.UpdateOperation, 0)
+	goldenLog = append(goldenLog, &surfstore.UpdateOperation{Term: 1, FileMetaData: fileMeta1})
+	for idx, server := range test.Clients {
+		var term int64
+		if idx == 0 {
+			term = 1
+		} else {
+			term = 2
+		}
+		_, err := CheckInternalState(nil, &term, goldenLog, goldenMeta, server, test.Context)
+		if err != nil {
+			t.Fatalf("Error checking state of server %d: %s", idx, err.Error())
 		}
 	}
 }

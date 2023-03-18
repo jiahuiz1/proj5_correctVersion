@@ -104,90 +104,194 @@ func (surfClient *RPCClient) GetBlockHashes(blockStoreAddr string, blockHashes *
 }
 
 func (surfClient *RPCClient) GetFileInfoMap(serverFileInfoMap *map[string]*FileMetaData) error {
-	conn, err := grpc.Dial(surfClient.MetaStoreAddrs[0], grpc.WithInsecure())
-	if err != nil {
-		fmt.Println("dial error: ", err.Error())
-		return err
+	for _, addr := range surfClient.MetaStoreAddrs {
+		conn, err := grpc.Dial(addr, grpc.WithInsecure())
+		if err != nil {
+			fmt.Println("dial error: ", err.Error())
+			return err
+		}
+		c := NewRaftSurfstoreClient(conn)
+	
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+	
+		var e *emptypb.Empty = new(emptypb.Empty)// check if doing this way correct
+		// fmt.Println(e)
+		fm, err := c.GetFileInfoMap(ctx, e)
+		if err != nil{
+			if err == ERR_NOT_LEADER {
+				conn.Close() // think about this
+				continue
+			}
+			conn.Close()
+			fmt.Println("client method error: ", err.Error())
+			return err
+		}
+		*serverFileInfoMap = fm.FileInfoMap
+	
+		return conn.Close()
 	}
-	c := NewRaftSurfstoreClient(conn)
+	return nil
+	// conn, err := grpc.Dial(surfClient.MetaStoreAddrs[0], grpc.WithInsecure())
+	// if err != nil {
+	// 	fmt.Println("dial error: ", err.Error())
+	// 	return err
+	// }
+	// c := NewRaftSurfstoreClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
+	// ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// defer cancel()
 
-	var e *emptypb.Empty = new(emptypb.Empty)// check if doing this way correct
-	fmt.Println(e)
-	fm, err := c.GetFileInfoMap(ctx, e)
-	if err != nil{
-		conn.Close()
-		fmt.Println("client method error: ", err.Error())
-		return err
-	}
-	*serverFileInfoMap = fm.FileInfoMap
+	// var e *emptypb.Empty = new(emptypb.Empty)// check if doing this way correct
+	// fmt.Println(e)
+	// fm, err := c.GetFileInfoMap(ctx, e)
+	// if err != nil{
+	// 	conn.Close()
+	// 	fmt.Println("client method error: ", err.Error())
+	// 	return err
+	// }
+	// *serverFileInfoMap = fm.FileInfoMap
 
-	return conn.Close()
+	// return conn.Close()
 }
 
 func (surfClient *RPCClient) UpdateFile(fileMetaData *FileMetaData, latestVersion *int32) error {
-	conn, err := grpc.Dial(surfClient.MetaStoreAddrs[0], grpc.WithInsecure())
-	if err != nil {
-		return err
+	for _, addr := range surfClient.MetaStoreAddrs{
+		conn, err := grpc.Dial(addr, grpc.WithInsecure())
+		if err != nil {
+			return err
+		}
+		c := NewRaftSurfstoreClient(conn)
+	
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		v, err := c.UpdateFile(ctx, fileMetaData)
+		if err != nil{
+			if err == ERR_NOT_LEADER{
+				conn.Close()
+				continue
+			}
+			conn.Close()
+			return err
+		}
+		*latestVersion = v.Version
+	
+		return conn.Close()
 	}
-	c := NewRaftSurfstoreClient(conn)
+	return nil
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	v, err := c.UpdateFile(ctx, fileMetaData)
-	if err != nil{
-		conn.Close()
-		return err
-	}
-	*latestVersion = v.Version
+	// conn, err := grpc.Dial(surfClient.MetaStoreAddrs[0], grpc.WithInsecure())
+	// if err != nil {
+	// 	return err
+	// }
+	// c := NewRaftSurfstoreClient(conn)
 
-	return conn.Close()
+	// ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// defer cancel()
+	// v, err := c.UpdateFile(ctx, fileMetaData)
+	// if err != nil{
+	// 	conn.Close()
+	// 	return err
+	// }
+	// *latestVersion = v.Version
+
+	// return conn.Close()
 }
 
 func (surfClient *RPCClient) GetBlockStoreMap(blockHashesIn []string, blockStoreMap *map[string][]string) error {
-	conn, err := grpc.Dial(surfClient.MetaStoreAddrs[0], grpc.WithInsecure())
-	if err != nil {
-		return err
-	}
-	c := NewRaftSurfstoreClient(conn)
-
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	bm, err := c.GetBlockStoreMap(ctx, &BlockHashes{Hashes: blockHashesIn})
-	if err != nil{
-		conn.Close()
-		return err
-	}
+	for _, addr := range surfClient.MetaStoreAddrs {
+		conn, err := grpc.Dial(addr, grpc.WithInsecure())
+		if err != nil {
+			return err
+		}
+		c := NewRaftSurfstoreClient(conn)
 	
-	bmModify := make(map[string][]string)
-	for k, v := range bm.BlockStoreMap{
-		bmModify[k] = v.Hashes
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		bm, err := c.GetBlockStoreMap(ctx, &BlockHashes{Hashes: blockHashesIn})
+		if err != nil{
+			if err == ERR_NOT_LEADER{
+				conn.Close()
+				continue
+			}
+			conn.Close()
+			return err
+		}
+		
+		bmModify := make(map[string][]string)
+		for k, v := range bm.BlockStoreMap{
+			bmModify[k] = v.Hashes
+		}
+		*blockStoreMap = bmModify
+	
+		return conn.Close()
 	}
-	*blockStoreMap = bmModify
+	return nil
+	// conn, err := grpc.Dial(surfClient.MetaStoreAddrs[0], grpc.WithInsecure())
+	// if err != nil {
+	// 	return err
+	// }
+	// c := NewRaftSurfstoreClient(conn)
 
-	return conn.Close()
+	// ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// defer cancel()
+	// bm, err := c.GetBlockStoreMap(ctx, &BlockHashes{Hashes: blockHashesIn})
+	// if err != nil{
+	// 	conn.Close()
+	// 	return err
+	// }
+	
+	// bmModify := make(map[string][]string)
+	// for k, v := range bm.BlockStoreMap{
+	// 	bmModify[k] = v.Hashes
+	// }
+	// *blockStoreMap = bmModify
+
+	// return conn.Close()
 }
 
 func (surfClient *RPCClient) GetBlockStoreAddrs(blockStoreAddrs *[]string) error {
-	conn, err := grpc.Dial(surfClient.MetaStoreAddrs[0], grpc.WithInsecure())
-	if err != nil {
-		return err
+	for _, addr := range surfClient.MetaStoreAddrs {
+		conn, err := grpc.Dial(addr, grpc.WithInsecure())
+		if err != nil {
+			return err
+		}
+		c := NewRaftSurfstoreClient(conn)
+	
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+		defer cancel()
+		var e *emptypb.Empty = new(emptypb.Empty)
+		ba, err := c.GetBlockStoreAddrs(ctx, e)
+		if err != nil{
+			if err == ERR_NOT_LEADER {
+				conn.Close()
+				continue
+			}
+			conn.Close()
+			return err
+		}
+		*blockStoreAddrs = ba.BlockStoreAddrs
+	
+		return conn.Close()
 	}
-	c := NewRaftSurfstoreClient(conn)
+	return nil
+	// conn, err := grpc.Dial(surfClient.MetaStoreAddrs[0], grpc.WithInsecure())
+	// if err != nil {
+	// 	return err
+	// }
+	// c := NewRaftSurfstoreClient(conn)
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second)
-	defer cancel()
-	var e *emptypb.Empty = new(emptypb.Empty)
-	ba, err := c.GetBlockStoreAddrs(ctx, e)
-	if err != nil{
-		conn.Close()
-		return err
-	}
-	*blockStoreAddrs = ba.BlockStoreAddrs
+	// ctx, cancel := context.WithTimeout(context.Background(), time.Second)
+	// defer cancel()
+	// var e *emptypb.Empty = new(emptypb.Empty)
+	// ba, err := c.GetBlockStoreAddrs(ctx, e)
+	// if err != nil{
+	// 	conn.Close()
+	// 	return err
+	// }
+	// *blockStoreAddrs = ba.BlockStoreAddrs
 
-	return conn.Close()
+	// return conn.Close()
 }
 
 
