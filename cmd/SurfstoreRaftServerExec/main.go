@@ -8,11 +8,16 @@ import (
 	"os"
 	"strings"
 	"fmt"
+	"runtime"
+	"path/filepath"
 )
 
 func main() {
 	command := strings.Join(os.Args[1:], " ")
 	fmt.Println(command)
+	_, path, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(path)
+	fmt.Printf("Program path: %s\n", dir)
 
 	serverId := flag.Int64("i", -1, "(required) Server ID")
 	configFile := flag.String("f", "", "(required) Config file, absolute path")

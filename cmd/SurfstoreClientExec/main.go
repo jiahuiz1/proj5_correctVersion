@@ -9,6 +9,8 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"runtime"
+	"path/filepath"
 )
 
 // Arguments
@@ -36,6 +38,10 @@ func main() {
 	// code to print command
 	command := strings.Join(os.Args[1:], " ")
 	fmt.Println(command)
+
+	_, path, _, _ := runtime.Caller(0)
+	dir := filepath.Dir(path)
+	fmt.Printf("Program path: %s\n", dir)
 
 	// Custom flag Usage message
 	flag.Usage = func() {
