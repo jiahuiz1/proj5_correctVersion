@@ -5,6 +5,7 @@ import (
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"testing"
 	"time"
+	"fmt"
 )
 
 func TestRaftSetLeader(t *testing.T) {
@@ -137,7 +138,24 @@ func TestRaftFollowersGetUpdates(t *testing.T) {
 	}
 }
 
+func TestRaftServerIsCrashable(t *testing.T){
+	t.Log("a request is sent to a crashed server.")
+	cfgPath := "./config_files/3nodes.txt"
+	test := InitTest(cfgPath)
+	defer EndTest(test)
 
+	leaderIdx := 0
+
+	test.Clients[leaderIdx].SetLeader(test.Context, &emptypb.Empty{})
+	test.Clients[leaderIdx].Crash(test.Context, &emptypb.Empty{})
+
+	_, err := test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+
+	if err != surfstore.ERR_SERVER_CRASHED {
+		fmt.Println("test:", surfstore.ERR_SERVER_CRASHED)
+		t.Fatalf("Server should return ERR_SERVER_CRASHED")
+	}
+}
 
 func TestRaftLogsConsistent(t *testing.T) {
 	t.Log("leader1 gets a request while a minority of the cluster is down. leader1 crashes. the other crashed nodes are restored. leader2 gets a request. leader1 is restored.")

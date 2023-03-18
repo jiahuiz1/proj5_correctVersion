@@ -396,7 +396,7 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 
 func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
 	if s.isCrashed {
-		return nil, ERR_SERVER_CRASHED // check if this is correct
+		return &Success{Flag: false}, ERR_SERVER_CRASHED // check if this is correct
 	}
 	
 	fmt.Printf("Server %d is the leader\n", s.id)
@@ -422,11 +422,13 @@ func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Succe
 
 func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
 	if s.isCrashed {
-		return nil, ERR_SERVER_CRASHED 
+		fmt.Println("Crashed")
+		//fmt.Println(error(ERR_SERVER_CRASHED))
+		return &Success{Flag: false}, ERR_SERVER_CRASHED
 	}
 
 	if !s.isLeader {
-		return &Success{Flag: false}, ERR_NOT_LEADER;
+		return &Success{Flag: false}, ERR_NOT_LEADER
 	}
 	var errt error
 	var success bool = true
