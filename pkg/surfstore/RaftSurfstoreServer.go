@@ -304,10 +304,12 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 		fmt.Println(erra.Error())
 
 		// change this ?
-		if erra == ERR_SERVER_CRASHED {
-			responses <- false
-			return
-		}
+		// if erra == ERR_SERVER_CRASHED {
+		// 	responses <- false
+		// 	return
+		// }
+		responses <- false
+		return
 	}
 
 	if res == nil {
