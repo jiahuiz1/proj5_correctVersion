@@ -88,7 +88,7 @@ func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty
 	}
 	if s.isCrashed{
 		fmt.Println("getfileinfomap : crashed")
-		// return nil, ERR_SERVER_CRASHED
+		return nil, ERR_SERVER_CRASHED
 	}
 	fmt.Printf("Server %d get file info map\n", s.id)
 	check := make(chan bool)
@@ -110,7 +110,7 @@ func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashe
 	}
 	if s.isCrashed{
 		fmt.Println("getblockstoremap : crashed")
-		// return nil, ERR_SERVER_CRASHED
+		return nil, ERR_SERVER_CRASHED
 	}
 	fmt.Printf("Server %d get block store map\n", s.id)
 	check := make(chan bool)
@@ -132,6 +132,7 @@ func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.E
 	}
 	if s.isCrashed{
 		fmt.Println("getblockstoreaddres : crashed")
+		return nil, ERR_SERVER_CRASHED
 	}
 	fmt.Printf("Server %d getblockstore addresses\n", s.id)
 	check := make(chan bool)
