@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 )
 
 // Arguments
@@ -32,6 +33,10 @@ const BLOCK_USAGE = "Size of the blocks used to fragment files"
 const EX_USAGE int = 64
 
 func main() {
+	// code to print command
+	command := strings.Join(os.Args[1:], " ")
+	fmt.Println(command)
+
 	// Custom flag Usage message
 	flag.Usage = func() {
 		w := flag.CommandLine.Output()

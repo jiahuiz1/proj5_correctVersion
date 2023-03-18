@@ -5,9 +5,15 @@ import (
 	"flag"
 	"io/ioutil"
 	"log"
+	"os"
+	"strings"
+	"fmt"
 )
 
 func main() {
+	command := strings.Join(os.Args[1:], " ")
+	fmt.Println(command)
+
 	serverId := flag.Int64("i", -1, "(required) Server ID")
 	configFile := flag.String("f", "", "(required) Config file, absolute path")
 	debug := flag.Bool("d", false, "Output log statements")
