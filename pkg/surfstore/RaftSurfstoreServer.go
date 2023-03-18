@@ -86,6 +86,9 @@ func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty
 	if !s.isLeader{
 		return nil, ERR_NOT_LEADER
 	}
+	if s.isCrashed{
+		fmt.Println("crashed")
+	}
 
 	check := make(chan bool)
 	go s.checkForAllServers(ctx, check)
@@ -103,6 +106,9 @@ func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashe
 	if !s.isLeader{
 		fmt.Println("Test Not leader")
 		return nil, ERR_NOT_LEADER
+	}
+	if s.isCrashed{
+		fmt.Println("crashed")
 	}
 
 	check := make(chan bool)
@@ -122,7 +128,10 @@ func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.E
 	if !s.isLeader{
 		return nil, ERR_NOT_LEADER
 	}
-
+	if s.isCrashed{
+		fmt.Println("crashed")
+	}
+	
 	check := make(chan bool)
 	go s.checkForAllServers(ctx, check)
 
@@ -138,6 +147,10 @@ func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.E
 func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) (*Version, error) {
 	if !s.isLeader {
 		return nil, ERR_NOT_LEADER
+	}
+
+	if s.isCrashed{
+		fmt.Println("crashed")
 	}
     // append entry to our log
 	s.log = append(s.log, &UpdateOperation{
