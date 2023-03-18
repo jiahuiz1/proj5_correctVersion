@@ -262,7 +262,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	}
 
 	// check if last log index >= nextIndex for the follower
-	if int64(len(state.Log) - 1) >= s.nextIndex[index]{
+	if state != nil && int64(len(state.Log) - 1) >= s.nextIndex[index]{
 		entries = s.log[s.nextIndex[index]:]
 	} else {
 		entries = s.log
