@@ -215,7 +215,7 @@ func (surfClient *RPCClient) GetBlockStoreMap(blockHashesIn []string, blockStore
 			if err == ERR_NOT_LEADER{
 				conn.Close()
 				continue
-			}
+			} 
 			conn.Close()
 			return err
 		}

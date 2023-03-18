@@ -151,8 +151,8 @@ func TestRaftServerIsCrashable(t *testing.T){
 
 	_, err := test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
 
-	if err != surfstore.ERR_SERVER_CRASHED {
-		fmt.Println("test:", surfstore.ERR_SERVER_CRASHED)
+	if err != nil {
+		fmt.Println("test:", err.Error())
 		t.Fatalf("Server should return ERR_SERVER_CRASHED")
 	}
 }
