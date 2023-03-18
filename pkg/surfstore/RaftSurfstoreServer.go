@@ -191,6 +191,7 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 		fmt.Printf("Commit for Server %d successfully\n", s.id)
 		return s.metaStore.UpdateFile(ctx, filemeta)
 	}
+	fmt.Println("Test if channel blocked")
     return nil, nil
 }
 
