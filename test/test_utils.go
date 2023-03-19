@@ -246,13 +246,6 @@ func SameFile(filename1, filename2 string) (bool, error) {
 }
 
 func SameMeta(meta1, meta2 map[string]*surfstore.FileMetaData) bool {
-	for f1, _ := range meta1 {
-		fmt.Println("meta1: ", f1)
-	}
-	for f2, _ := range meta2 {
-		fmt.Println("meta2: ", f2)
-	}
-
 	for filename1, filemeta1 := range meta1 {
 		filemeta2, exist := meta2[filename1]
 		if !exist ||

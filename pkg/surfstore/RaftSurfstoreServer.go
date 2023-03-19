@@ -196,7 +196,12 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 	// once committed, apply to the state machine
 	if commit {
 		fmt.Printf("Commit for Server %d successfully\n", s.id)
-		return s.metaStore.UpdateFile(ctx, filemeta)
+		res, err := s.metaStore.UpdateFile(ctx, filemeta)
+
+		var e *emptypb.Empty = new(emptypb.Empty)
+		t1, _ := s.metaStore.GetFileInfoMap(ctx, e)
+		fmt.Printf("length of the server %d's fileinfomap: %d \n", s.id, len(t1.FileInfoMap))
+		return res, err
 	}
 	fmt.Println("Test if channel blocked")
     return nil, nil
@@ -209,6 +214,7 @@ func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context) {
 	// contact all the follower, send some AppendEntries call
 	for idx, addr := range s.peers {
 		if int64(idx) == s.id {
+			fmt.Printf("Leader is %d server\n", s.id)
 			continue
 		}
 
@@ -236,21 +242,21 @@ func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context) {
 		lateIndex := len(s.pendingCommits) - 1
 		*s.pendingCommits[lateIndex] <- true
 		// TODO update commit Index correctly
-		// s.commitIndex += 1 
-		for _, v1 := range s.matchIndex {
-			if v1 > s.commitIndex {
-				majority := 0
-				for _, v2 := range s.matchIndex {
-					if v2 >= v1 {
-						majority += 1
-					}
-				}
+		s.commitIndex += 1 
+		// for _, v1 := range s.matchIndex {
+		// 	if v1 > s.commitIndex {
+		// 		majority := 0
+		// 		for _, v2 := range s.matchIndex {
+		// 			if v2 >= v1 {
+		// 				majority += 1
+		// 			}
+		// 		}
 
-				if majority > len(s.matchIndex)/2{
-					s.commitIndex = v1
-				}
-			} 
-		}
+		// 		if majority > len(s.matchIndex)/2{
+		// 			s.commitIndex = v1
+		// 		}
+		// 	} 
+		// }
 	}
 }
 
@@ -390,16 +396,6 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 		}, nil
 	}
 
-	// if !consistencyCheck && s.log[s.nextIndex[s.id]-1].Term != input.Entries[s.nextIndex[s.id]-1].Term{
-	// 	s.nextIndex[s.id]--
-	// 	return &AppendEntryOutput{
-	// 		ServerId: s.id,
-	// 		Term: s.term,
-	// 		Success: false,
-	// 		MatchedIndex: 0, // may change this
-	// 	}, nil
-	// }
-
 	// 3 : check if existing entries in follower conflict with new entries(after prevLogIndex)
 	if int64(len(s.log) - 1) > input.PrevLogIndex {
 		s.log = s.log[:input.PrevLogIndex+1]
@@ -420,12 +416,21 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 
 	// TODO actually check entries
 
-	fmt.Printf("Server %d update file", s.id)
+	fmt.Printf("Server %d update file\n", s.id)
 	for s.lastApplied < input.LeaderCommit {
 		entry := s.log[s.lastApplied+1]
 		s.metaStore.UpdateFile(ctx, entry.FileMetaData)
 		s.lastApplied++
 	}
+	if s.lastApplied > 0 {
+		entry := s.log[s.lastApplied]
+		s.metaStore.UpdateFile(ctx, entry.FileMetaData)
+	}
+	fmt.Println("lastapplied: ", s.lastApplied)
+	fmt.Println("input commitIndex: ", input.LeaderCommit)
+	// var e *emptypb.Empty = new(emptypb.Empty)
+	// t1, _ := s.metaStore.GetFileInfoMap(ctx, e)
+	// fmt.Printf("length of the server %d's fileinfomap: %d \n", s.id, len(t1.FileInfoMap))
 
 	return &AppendEntryOutput{
 		ServerId: s.id,
