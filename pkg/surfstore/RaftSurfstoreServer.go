@@ -2,11 +2,12 @@ package surfstore
 
 import (
 	context "context"
-	emptypb "google.golang.org/protobuf/types/known/emptypb"
-	"sync"
-	"google.golang.org/grpc"
 	"fmt"
 	"math"
+	"sync"
+
+	"google.golang.org/grpc"
+	emptypb "google.golang.org/protobuf/types/known/emptypb"
 )
 
 // TODO Add fields you need here
@@ -14,11 +15,11 @@ type RaftSurfstore struct {
 	isLeader      bool
 	isLeaderMutex *sync.RWMutex
 	term          int64
-	log         []*UpdateOperation
-	commitIndex int64
-	lastApplied int64
-	nextIndex []int64
-	matchIndex []int64
+	log           []*UpdateOperation
+	commitIndex   int64
+	lastApplied   int64
+	nextIndex     []int64
+	matchIndex    []int64
 
 	metaStore *MetaStore
 
@@ -32,40 +33,39 @@ type RaftSurfstore struct {
 	UnimplementedRaftSurfstoreServer
 }
 
-func (s *RaftSurfstore) checkForAllServers(ctx context.Context, check chan bool){
+func (s *RaftSurfstore) checkForAllServers(ctx context.Context, check chan bool) {
 	totalWork := 0
 	totalChecks := 0
 	responses := make(chan bool, len(s.peers))
 
 	for {
 		for idx, addr := range s.peers {
-			if int64(idx) == s.id && !s.isCrashed{
+			if int64(idx) == s.id && !s.isCrashed {
 				responses <- true
 				continue
 			}
 			go s.checkFollower(ctx, addr, responses, idx)
 		}
 
-
 		for {
-			result := <- responses
+			result := <-responses
 			totalChecks++
 			if result {
 				totalWork++
 			}
-			if totalChecks == len(s.peers){
+			if totalChecks == len(s.peers) {
 				break
 			}
 		}
 
-		if totalWork > len(s.peers)/2{
+		if totalWork > len(s.peers)/2 {
 			check <- true
 			return
 		}
 	}
 }
 
-func (s *RaftSurfstore) checkFollower(ctx context.Context, addr string, responses chan bool, idx int){
+func (s *RaftSurfstore) checkFollower(ctx context.Context, addr string, responses chan bool, idx int) {
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
 		fmt.Println(err.Error())
@@ -74,19 +74,18 @@ func (s *RaftSurfstore) checkFollower(ctx context.Context, addr string, response
 
 	var e *emptypb.Empty = new(emptypb.Empty)
 	_, errs := client.SendHeartbeat(ctx, e)
-	if errs == ERR_SERVER_CRASHED {
+	if errs != nil {
 		responses <- false
 	} else {
 		responses <- true
 	}
 }
 
-
 func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty) (*FileInfoMap, error) {
-	if !s.isLeader{
+	if !s.isLeader {
 		return nil, ERR_NOT_LEADER
 	}
-	if s.isCrashed{
+	if s.isCrashed {
 		fmt.Println("getfileinfomap : crashed")
 		return nil, ERR_SERVER_CRASHED
 	}
@@ -94,21 +93,21 @@ func (s *RaftSurfstore) GetFileInfoMap(ctx context.Context, empty *emptypb.Empty
 	check := make(chan bool)
 	go s.checkForAllServers(ctx, check)
 
-	checkResult := <- check
+	checkResult := <-check
 	if checkResult {
 		res, err := s.metaStore.GetFileInfoMap(ctx, empty)
 		return res, err
 	}
 
-    return nil, nil
+	return nil, nil
 }
 
 func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashes) (*BlockStoreMap, error) {
-	if !s.isLeader{
+	if !s.isLeader {
 		fmt.Println("Test Not leader")
 		return nil, ERR_NOT_LEADER
 	}
-	if s.isCrashed{
+	if s.isCrashed {
 		fmt.Println("getblockstoremap : crashed")
 		return nil, ERR_SERVER_CRASHED
 	}
@@ -116,7 +115,7 @@ func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashe
 	check := make(chan bool)
 	go s.checkForAllServers(ctx, check)
 
-	checkResult := <- check
+	checkResult := <-check
 	if checkResult {
 		fmt.Println("majority of servers working")
 		res, err := s.metaStore.GetBlockStoreMap(ctx, hashes)
@@ -127,10 +126,10 @@ func (s *RaftSurfstore) GetBlockStoreMap(ctx context.Context, hashes *BlockHashe
 }
 
 func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.Empty) (*BlockStoreAddrs, error) {
-	if !s.isLeader{
+	if !s.isLeader {
 		return nil, ERR_NOT_LEADER
 	}
-	if s.isCrashed{
+	if s.isCrashed {
 		fmt.Println("getblockstoreaddres : crashed")
 		return nil, ERR_SERVER_CRASHED
 	}
@@ -138,7 +137,7 @@ func (s *RaftSurfstore) GetBlockStoreAddrs(ctx context.Context, empty *emptypb.E
 	check := make(chan bool)
 	go s.checkForAllServers(ctx, check)
 
-	checkResult := <- check
+	checkResult := <-check
 	if checkResult {
 		res, err := s.metaStore.GetBlockStoreAddrs(ctx, empty)
 		return res, err
@@ -152,12 +151,21 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 		return nil, ERR_NOT_LEADER
 	}
 
-	if s.isCrashed{
+	if s.isCrashed {
 		fmt.Println("updateFile request : crashed")
 		return nil, ERR_SERVER_CRASHED
 	}
 	fmt.Printf("Server %d update file\n", s.id)
-    // append entry to our log
+
+	check := make(chan bool)
+	go s.checkForAllServers(ctx, check)
+
+	checkResult := <-check
+	if checkResult {
+		fmt.Println("Majority of servers working")
+	}
+
+	// append entry to our log
 	s.log = append(s.log, &UpdateOperation{
 		Term:         s.term,
 		FileMetaData: filemeta,
@@ -192,9 +200,8 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 		return s.metaStore.UpdateFile(ctx, filemeta)
 	}
 	fmt.Println("Test if channel blocked")
-    return nil, nil
+	return nil, nil
 }
-
 
 func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context) {
 	// send entry to all my followers and count the replies
@@ -229,7 +236,7 @@ func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context) {
 		lateIndex := len(s.pendingCommits) - 1
 		*s.pendingCommits[lateIndex] <- true
 		// TODO update commit Index correctly
-		// s.commitIndex += 1 
+		// s.commitIndex += 1
 		for _, v1 := range s.matchIndex {
 			if v1 > s.commitIndex {
 				majority := 0
@@ -239,24 +246,23 @@ func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context) {
 					}
 				}
 
-				if majority > len(s.matchIndex)/2{
+				if majority > len(s.matchIndex)/2 {
 					s.commitIndex = v1
 				}
-			} 
+			}
 		}
 	}
 }
 
-
 func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, responses chan bool, index int) {
-	var prevLogIndex int64 
+	var prevLogIndex int64
 	var prevLogTerm int64
 	var entries []*UpdateOperation
 
-	if s.commitIndex < 0{
+	if s.commitIndex < 0 {
 		prevLogIndex = -1
 		prevLogTerm = -1
-	} else{
+	} else {
 		prevLogIndex = s.nextIndex[index] - 1
 		if prevLogIndex < 0 {
 			prevLogTerm = -1
@@ -267,7 +273,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 
 	// TODO check all errors
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
-	if err != nil{
+	if err != nil {
 		fmt.Println("Dial to follower error: ", err.Error())
 	}
 	client := NewRaftSurfstoreClient(conn)
@@ -286,7 +292,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	}
 
 	// check if last log index >= nextIndex for the follower
-	if state != nil && int64(len(state.Log) - 1) >= s.nextIndex[index]{
+	if state != nil && int64(len(state.Log)-1) >= s.nextIndex[index] {
 		entries = s.log[s.nextIndex[index]:]
 	} else {
 		entries = s.log
@@ -301,9 +307,9 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 		LeaderCommit: s.commitIndex,
 	}
 	res, erra := client.AppendEntries(ctx, &dummyAppendEntriesInput) // change this
-	
+
 	// TODO check output
-	
+
 	// need to be done
 	// if appendEntries successful, update nextIndex, matchIndex
 	// if fail, decrement nextIndex, retry
@@ -327,7 +333,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 		s.nextIndex[index] = res.MatchedIndex + 1
 		s.matchIndex[index] = res.MatchedIndex
 		responses <- true
-	} else if !res.Success{
+	} else if !res.Success {
 		s.nextIndex[index] -= 1
 		responses <- false
 	}
@@ -337,7 +343,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 
 // 1. Reply false if term < currentTerm (§5.1)
 // 2. Reply false if log doesn’t contain an entry at prevLogIndex whose term
-// matches prevLogTerm (§5.3) 
+// matches prevLogTerm (§5.3)
 // 3. If an existing entry conflicts with a new one (same index but different
 // terms), delete the existing entry and all that follow it (§5.3)
 // 4. Append any new entries not already in the log
@@ -349,9 +355,9 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 		fmt.Printf("Appendentries Server %d Crashed\n", s.id)
 		// return nil, ERR_SERVER_CRASHED
 		return &AppendEntryOutput{
-			ServerId: s.id,
-			Term: s.term,
-			Success: false,
+			ServerId:     s.id,
+			Term:         s.term,
+			Success:      false,
 			MatchedIndex: 0, // may change this
 		}, ERR_SERVER_CRASHED
 	}
@@ -365,20 +371,20 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 	} else if input.Term < s.term {
 		// reply false(reject)
 		return &AppendEntryOutput{
-			ServerId: s.id,
-			Term: s.term,
-			Success: false,
+			ServerId:     s.id,
+			Term:         s.term,
+			Success:      false,
 			MatchedIndex: 0, // may change this
 		}, nil
 	}
 
 	// 2
-	if input.PrevLogIndex >= int64(len(s.log)) || (input.PrevLogIndex >= 0 && s.log[input.PrevLogIndex].Term != input.PrevLogTerm){
+	if input.PrevLogIndex >= int64(len(s.log)) || (input.PrevLogIndex >= 0 && s.log[input.PrevLogIndex].Term != input.PrevLogTerm) {
 		// consistencyCheck = false
 		return &AppendEntryOutput{
-			ServerId: s.id,
-			Term: s.term,
-			Success: false,
+			ServerId:     s.id,
+			Term:         s.term,
+			Success:      false,
 			MatchedIndex: 0,
 		}, nil
 	}
@@ -394,13 +400,12 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 	// }
 
 	// 3 : check if existing entries in follower conflict with new entries(after prevLogIndex)
-	if int64(len(s.log) - 1) > input.PrevLogIndex {
+	if int64(len(s.log)-1) > input.PrevLogIndex {
 		s.log = s.log[:input.PrevLogIndex+1]
 	}
-	
 
 	// 4 : append entries to the log
-	for i := input.PrevLogIndex+1; i < int64(len(input.Entries)); i++{
+	for i := input.PrevLogIndex + 1; i < int64(len(input.Entries)); i++ {
 		s.log = append(s.log, input.Entries[i])
 	}
 
@@ -420,10 +425,10 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 	}
 
 	return &AppendEntryOutput{
-		ServerId: s.id,
-		Term: s.term,
-		Success: true,
-		MatchedIndex: int64(len(s.log)-1),
+		ServerId:     s.id,
+		Term:         s.term,
+		Success:      true,
+		MatchedIndex: int64(len(s.log) - 1),
 	}, nil
 
 }
@@ -434,26 +439,26 @@ func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Succe
 		//return &Success{Flag: false}, ERR_SERVER_CRASHED // check if this is correct
 		return nil, nil
 	}
-	
+
 	fmt.Printf("Server %d is the leader\n", s.id)
 	s.isLeaderMutex.Lock()
 	defer s.isLeaderMutex.Unlock()
 	s.isLeader = true
 	s.term++
 
-	// update state	
+	// update state
 
 	// s.lastApplied = int64(0)
 	nextIndex := make([]int64, 0)
 	matchIndex := make([]int64, 0)
-	for i := 0; i < len(s.peers); i++{
+	for i := 0; i < len(s.peers); i++ {
 		nextIndex = append(nextIndex, int64(len(s.log))) // check this
 		matchIndex = append(matchIndex, int64(0))
 	}
 	s.nextIndex = nextIndex
 	s.matchIndex = matchIndex
 
-    return nil, nil
+	return nil, nil
 }
 
 func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
@@ -474,14 +479,14 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 		if int64(idx) == s.id {
 			continue
 		}
-		var prevLogIndex int64 
+		var prevLogIndex int64
 		var prevLogTerm int64
 		var entries []*UpdateOperation
-	
-		if s.commitIndex < 0{
-			prevLogIndex = -1 
+
+		if s.commitIndex < 0 {
+			prevLogIndex = -1
 			prevLogTerm = -1
-		} else{
+		} else {
 			prevLogIndex = s.nextIndex[idx] - 1
 			if prevLogIndex < 0 {
 				prevLogTerm = -1
@@ -492,9 +497,9 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 
 		// TODO check all errors
 		conn, err := grpc.Dial(addr, grpc.WithInsecure())
-		if err != nil{
+		if err != nil {
 			fmt.Println("Dial to follower error: ", err.Error())
-			errt = err 
+			errt = err
 			success = false
 			continue
 		}
@@ -511,7 +516,7 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 		// 	fmt.Println("Follower internal state nil")
 		// }
 
-		if state != nil && int64(len(state.Log) - 1) >= s.nextIndex[idx] {
+		if state != nil && int64(len(state.Log)-1) >= s.nextIndex[idx] {
 			entries = s.log[s.nextIndex[idx]:]
 		} else {
 			entries = s.log
@@ -526,7 +531,7 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 			LeaderCommit: s.commitIndex,
 		}
 		res, errc := client.AppendEntries(ctx, &dummyAppendEntriesInput)
-		if errc != nil{
+		if errc != nil {
 			fmt.Println("Append Entries error:", errc.Error())
 			continue
 		}
@@ -536,13 +541,13 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 		} else if res.Success {
 			s.nextIndex[idx] = res.MatchedIndex + 1
 			s.matchIndex[idx] = res.MatchedIndex
-		} else if !res.Success{
+		} else if !res.Success {
 			s.nextIndex[idx] -= 1
 			success = false
 		}
 	}
 
-	return &Success{Flag: success}, errt;
+	return &Success{Flag: success}, errt
 }
 
 // ========== DO NOT MODIFY BELOW THIS LINE =====================================
