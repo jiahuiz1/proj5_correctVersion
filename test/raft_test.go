@@ -151,9 +151,42 @@ func TestRaftServerIsCrashable(t *testing.T){
 
 	_, err := test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
 
-	if err != nil {
+	if err == nil {
 		fmt.Println("test:", err.Error())
 		t.Fatalf("Server should return ERR_SERVER_CRASHED")
+	}
+}
+
+func TestRaftRecoverable(t *testing.T){
+	t.Log("leader1 gets a request while all other nodes are crashed. the crashed nodes recover.")
+	cfgPath := "./config_files/3nodes.txt"
+	test := InitTest(cfgPath)
+	defer EndTest(test)
+
+	leaderIdx := 0
+	fileMeta1 := &surfstore.FileMetaData{
+		Filename:      "testfile1",
+		Version:       1,
+		BlockHashList: nil,
+	}
+
+
+	test.Clients[leaderIdx].SetLeader(test.Context, &emptypb.Empty{})
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+
+	test.Clients[1].Crash(test.Context, &emptypb.Empty{})
+	test.Clients[2].Crash(test.Context, &emptypb.Empty{})
+
+	test.Clients[leaderIdx].UpdateFile(test.Context, fileMeta1)
+	test.Clients[1].Restore(test.Context, &emptypb.Empty{})
+	test.Clients[2].Restore(test.Context, &emptypb.Empty{})
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+
+	_, err := test.Clients[leaderIdx].UpdateFile(test.Context, fileMeta1)
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+	
+	if err != nil {
+		t.Fatalf("Did not complete request")
 	}
 }
 

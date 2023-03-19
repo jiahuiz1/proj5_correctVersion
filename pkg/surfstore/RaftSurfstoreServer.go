@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"fmt"
 	"math"
+	"time"
 )
 
 // TODO Add fields you need here
@@ -169,19 +170,29 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 	go s.sendToAllFollowersInParallel(ctx)
 
 	// keep trying indefinitely (even after responding) ** rely on sendheartbeat
-	// go func(){
-	// 	for {
-	// 		var e *emptypb.Empty = new(emptypb.Empty)
-	// 		succ, _ := s.SendHeartbeat(ctx, e) // check if this is correct for sending indefinitely
-	// 		// fmt.Println(succ.Flag)
-	// 		if succ.Flag{
-	// 			fmt.Println("Success")
-	// 			lateIndex := len(s.pendingCommits) - 1
-	// 			*s.pendingCommits[lateIndex] <- true
-	// 			return
-	// 		}
-	// 	}
-	// }()
+	go func(){
+		// for {
+		// 	var e *emptypb.Empty = new(emptypb.Empty)
+		// 	succ, _ := s.SendHeartbeat(ctx, e) // check if this is correct for sending indefinitely
+		// 	// fmt.Println(succ.Flag)
+		// 	if succ.Flag{
+		// 		fmt.Println("Success")
+		// 		lateIndex := len(s.pendingCommits) - 1
+		// 		*s.pendingCommits[lateIndex] <- true
+		// 		return
+		// 	}
+		// }
+
+		// check := false
+		for i := 0; i < 3; i++ {
+			var e *emptypb.Empty = new(emptypb.Empty)
+			_, err := s.SendHeartbeat(ctx, e)
+			if err != nil {
+				fmt.Println(err.Error())
+			}
+			time.Sleep(1 * time.Millisecond)
+		}
+	}()
 
 	// commit the entry once majority of followers have it in their log
 	commit := <-commitChan
@@ -244,6 +255,9 @@ func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context) {
 				}
 			} 
 		}
+	} else {
+		lateIndex := len(s.pendingCommits) - 1
+		*s.pendingCommits[lateIndex] <- false
 	}
 }
 
