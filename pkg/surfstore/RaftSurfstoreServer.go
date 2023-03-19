@@ -5,6 +5,7 @@ import (
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"sync"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 	"fmt"
 	"math"
 )
@@ -74,10 +75,13 @@ func (s *RaftSurfstore) checkFollower(ctx context.Context, addr string, response
 
 	var e *emptypb.Empty = new(emptypb.Empty)
 	_, errs := client.SendHeartbeat(ctx, e)
-	if errs == ERR_SERVER_CRASHED {
-		responses <- false
-	} else {
-		responses <- true
+	if errs != nil{
+		s, _ := status.FromError(errs)
+		if s.Message() == "Server is crashed."{
+			responses <- false
+		} else {
+			responses <- true
+		}
 	}
 }
 
@@ -157,6 +161,15 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 		return nil, ERR_SERVER_CRASHED
 	}
 	fmt.Printf("Server %d update file\n", s.id)
+
+	check := make(chan bool)
+	go s.checkForAllServers(ctx, check)
+
+	checkResult := <- check
+	if checkResult {
+		fmt.Println("Majority of servers working in Update File")
+	}
+
     // append entry to our log
 	s.log = append(s.log, &UpdateOperation{
 		Term:         s.term,
@@ -304,9 +317,6 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	
 	// TODO check output
 	
-	// need to be done
-	// if appendEntries successful, update nextIndex, matchIndex
-	// if fail, decrement nextIndex, retry
 	if erra != nil {
 		fmt.Println(erra.Error())
 
@@ -383,16 +393,6 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 		}, nil
 	}
 
-	// if !consistencyCheck && s.log[s.nextIndex[s.id]-1].Term != input.Entries[s.nextIndex[s.id]-1].Term{
-	// 	s.nextIndex[s.id]--
-	// 	return &AppendEntryOutput{
-	// 		ServerId: s.id,
-	// 		Term: s.term,
-	// 		Success: false,
-	// 		MatchedIndex: 0, // may change this
-	// 	}, nil
-	// }
-
 	// 3 : check if existing entries in follower conflict with new entries(after prevLogIndex)
 	if int64(len(s.log) - 1) > input.PrevLogIndex {
 		s.log = s.log[:input.PrevLogIndex+1]
@@ -430,7 +430,7 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 
 func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
 	if s.isCrashed {
-		fmt.Printf("Set Leader Server %d Crashed", s.id)
+		fmt.Printf("Set Leader Server %d Crashed\n", s.id)
 		//return &Success{Flag: false}, ERR_SERVER_CRASHED // check if this is correct
 		return nil, nil
 	}
@@ -458,7 +458,7 @@ func (s *RaftSurfstore) SetLeader(ctx context.Context, _ *emptypb.Empty) (*Succe
 
 func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*Success, error) {
 	if s.isCrashed {
-		fmt.Printf("Sendheartbeat Server %d Crashed", s.id)
+		fmt.Printf("Sendheartbeat Server %d Crashed\n", s.id)
 		//fmt.Println(error(ERR_SERVER_CRASHED))
 		// return &Success{Flag: false}, ERR_SERVER_CRASHED
 		return nil, ERR_SERVER_CRASHED

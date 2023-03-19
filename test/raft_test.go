@@ -157,6 +157,40 @@ func TestRaftServerIsCrashable(t *testing.T){
 	}
 }
 
+func TestRaftRecoverable(t *testing.T){
+	t.Log("leader1 gets a request while all other nodes are crashed. the crashed nodes recover.")
+	cfgPath := "./config_files/3nodes.txt"
+	test := InitTest(cfgPath)
+	defer EndTest(test)
+
+	leaderIdx := 0
+	fileMeta1 := &surfstore.FileMetaData{
+		Filename:      "testfile1",
+		Version:       1,
+		BlockHashList: nil,
+	}
+
+
+	test.Clients[leaderIdx].SetLeader(test.Context, &emptypb.Empty{})
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+
+	test.Clients[1].Crash(test.Context, &emptypb.Empty{})
+	test.Clients[2].Crash(test.Context, &emptypb.Empty{})
+
+	_, err := test.Clients[leaderIdx].UpdateFile(test.Context, fileMeta1)
+	test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+	test.Clients[1].Restore(test.Context, &emptypb.Empty{})
+	test.Clients[2].Restore(test.Context, &emptypb.Empty{})
+	
+
+	//_, err := test.Clients[leaderIdx].UpdateFile(test.Context, fileMeta1)
+	//_, err := test.Clients[leaderIdx].SendHeartbeat(test.Context, &emptypb.Empty{})
+	
+	if err != nil {
+		t.Fatalf("Did not complete request")
+	}
+}
+
 func TestRaftLogsConsistent(t *testing.T) {
 	t.Log("leader1 gets a request while a minority of the cluster is down. leader1 crashes. the other crashed nodes are restored. leader2 gets a request. leader1 is restored.")
 	cfgPath := "./config_files/3nodes.txt"
