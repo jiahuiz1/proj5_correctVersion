@@ -215,6 +215,7 @@ func TestRaftLogsConsistent(t *testing.T) {
 
 	term := int64(2)
 	for idx, server := range test.Clients {
+
 		_, err := CheckInternalState(nil, &term, goldenLog, goldenMeta, server, test.Context)
 		if err != nil {
 			t.Fatalf("Error checking state for server %d: %s", idx, err.Error())

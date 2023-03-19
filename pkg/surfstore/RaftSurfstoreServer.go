@@ -7,6 +7,7 @@ import (
 	"google.golang.org/grpc"
 	"fmt"
 	"math"
+	//"time"
 )
 
 // TODO Add fields you need here
@@ -170,14 +171,20 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 
 	// keep trying indefinitely (even after responding) ** rely on sendheartbeat
 	// go func(){
+	// 	_, childCancel := context.WithTimeout(ctx, 5*time.Second)
+	// 	defer childCancel()
 	// 	for {
 	// 		var e *emptypb.Empty = new(emptypb.Empty)
-	// 		succ, _ := s.SendHeartbeat(ctx, e) // check if this is correct for sending indefinitely
+	// 		_, err := s.SendHeartbeat(ctx, e) // check if this is correct for sending indefinitely
 	// 		// fmt.Println(succ.Flag)
-	// 		if succ.Flag{
-	// 			fmt.Println("Success")
-	// 			lateIndex := len(s.pendingCommits) - 1
-	// 			*s.pendingCommits[lateIndex] <- true
+	// 		// if succ.Flag{
+	// 		// 	fmt.Println("Success")
+	// 		// 	lateIndex := len(s.pendingCommits) - 1
+	// 		// 	*s.pendingCommits[lateIndex] <- true
+	// 		// 	return
+	// 		// }
+	// 		fmt.Println("Retrying")
+	// 		if err == nil {
 	// 			return
 	// 		}
 	// 	}
@@ -413,6 +420,7 @@ func (s *RaftSurfstore) AppendEntries(ctx context.Context, input *AppendEntryInp
 
 	// TODO actually check entries
 
+	fmt.Printf("Server %d update file", s.id)
 	for s.lastApplied < input.LeaderCommit {
 		entry := s.log[s.lastApplied+1]
 		s.metaStore.UpdateFile(ctx, entry.FileMetaData)

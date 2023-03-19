@@ -30,6 +30,15 @@ func SameHashList(list1, list2 []string) bool {
 	if len(list1) != len(list2) {
 		return false
 	}
+	// join1 := ""
+	// join2 := ""
+	
+	// for i := 0; i < len(list1); i++ {
+	// 	join1 += list1[i]
+	// 	join2 += list2[i]
+	// }
+	// fmt.Println("HashList1: ", join1)
+	// fmt.Println("HashList2: ", join2)
 
 	for i := 0; i < len(list1); i++ {
 		if list1[i] != list2[i] {
@@ -237,6 +246,12 @@ func SameFile(filename1, filename2 string) (bool, error) {
 }
 
 func SameMeta(meta1, meta2 map[string]*surfstore.FileMetaData) bool {
+	for f1, _ := range meta1 {
+		fmt.Println("meta1: ", f1)
+	}
+	for f2, _ := range meta2 {
+		fmt.Println("meta2: ", f2)
+	}
 
 	for filename1, filemeta1 := range meta1 {
 		filemeta2, exist := meta2[filename1]
