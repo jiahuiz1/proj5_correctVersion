@@ -113,7 +113,7 @@ func (surfClient *RPCClient) GetFileInfoMap(serverFileInfoMap *map[string]*FileM
 		}
 		c := NewRaftSurfstoreClient(conn)
 	
-		ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 	
 		var e *emptypb.Empty = new(emptypb.Empty)// check if doing this way correct
@@ -171,7 +171,7 @@ func (surfClient *RPCClient) UpdateFile(fileMetaData *FileMetaData, latestVersio
 		}
 		c := NewRaftSurfstoreClient(conn)
 	
-		ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		v, err := c.UpdateFile(ctx, fileMetaData)
 		if err != nil{
@@ -220,7 +220,7 @@ func (surfClient *RPCClient) GetBlockStoreMap(blockHashesIn []string, blockStore
 		}
 		c := NewRaftSurfstoreClient(conn)
 	
-		ctx, cancel := context.WithTimeout(context.Background(), 3 * time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), time.Second)
 		defer cancel()
 		bm, err := c.GetBlockStoreMap(ctx, &BlockHashes{Hashes: blockHashesIn})
 		if err != nil{

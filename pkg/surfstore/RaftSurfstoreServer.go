@@ -5,6 +5,7 @@ import (
 	emptypb "google.golang.org/protobuf/types/known/emptypb"
 	"sync"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/status"
 	"fmt"
 	"math"
 	//"time"
@@ -75,10 +76,13 @@ func (s *RaftSurfstore) checkFollower(ctx context.Context, addr string, response
 
 	var e *emptypb.Empty = new(emptypb.Empty)
 	_, errs := client.SendHeartbeat(ctx, e)
-	if errs == ERR_SERVER_CRASHED {
-		responses <- false
-	} else {
-		responses <- true
+	if errs != nil {
+		s, _ := status.FromError(errs)
+		if s.Message() == "Server is crashed." {
+			responses <- false
+		} else {
+			responses <- true
+		}
 	}
 }
 
@@ -158,6 +162,15 @@ func (s *RaftSurfstore) UpdateFile(ctx context.Context, filemeta *FileMetaData) 
 		return nil, ERR_SERVER_CRASHED
 	}
 	fmt.Printf("Server %d update file\n", s.id)
+
+	check := make(chan bool)
+	go s.checkForAllServers(ctx, check)
+
+	checkResult := <- check
+	if checkResult {
+		fmt.Println("Majority of servers working")
+	}
+
     // append entry to our log
 	s.log = append(s.log, &UpdateOperation{
 		Term:         s.term,
@@ -242,6 +255,9 @@ func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context) {
 		*s.pendingCommits[lateIndex] <- true
 
 		s.commitIndex += 1 
+	} else {
+		lateIndex := len(s.pendingCommits) - 1
+		*s.pendingCommits[lateIndex] <- false
 	}
 }
 
@@ -478,7 +494,6 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 			}
 		}
 
-		// TODO check all errors
 		conn, err := grpc.Dial(addr, grpc.WithInsecure())
 		if err != nil{
 			fmt.Println("Dial to follower error: ", err.Error())
