@@ -238,25 +238,10 @@ func (s *RaftSurfstore) sendToAllFollowersInParallel(ctx context.Context) {
 
 	// majority of followers agree and replicate their logs
 	if totalAppends > len(s.peers)/2 {
-		// TODO put on correct channel
 		lateIndex := len(s.pendingCommits) - 1
 		*s.pendingCommits[lateIndex] <- true
-		// TODO update commit Index correctly
-		s.commitIndex += 1 
-		// for _, v1 := range s.matchIndex {
-		// 	if v1 > s.commitIndex {
-		// 		majority := 0
-		// 		for _, v2 := range s.matchIndex {
-		// 			if v2 >= v1 {
-		// 				majority += 1
-		// 			}
-		// 		}
 
-		// 		if majority > len(s.matchIndex)/2{
-		// 			s.commitIndex = v1
-		// 		}
-		// 	} 
-		// }
+		s.commitIndex += 1 
 	}
 }
 
@@ -289,8 +274,7 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	var e *emptypb.Empty = new(emptypb.Empty)
 	state, errs := client.GetInternalState(ctx, e)
 	// followerLog := state.Log
-	// fmt.Println("Test1: ", len(followerLog))
-	//fmt.Println("Test2: ", len(state.Log))
+
 	if errs != nil {
 		fmt.Println("Get internal state failed: ", errs.Error())
 	}
@@ -315,19 +299,11 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 	}
 	res, erra := client.AppendEntries(ctx, &dummyAppendEntriesInput) // change this
 	
-	// TODO check output
-	
-	// need to be done
 	// if appendEntries successful, update nextIndex, matchIndex
 	// if fail, decrement nextIndex, retry
 	if erra != nil {
 		fmt.Println(erra.Error())
 
-		// change this ?
-		// if erra == ERR_SERVER_CRASHED {
-		// 	responses <- false
-		// 	return
-		// }
 		responses <- false
 		return
 	}
@@ -345,7 +321,6 @@ func (s *RaftSurfstore) sendToFollower(ctx context.Context, addr string, respons
 		responses <- false
 	}
 	// responses <- true
-
 }
 
 // 1. Reply false if term < currentTerm (§5.1)
@@ -517,12 +492,6 @@ func (s *RaftSurfstore) SendHeartbeat(ctx context.Context, _ *emptypb.Empty) (*S
 		// get follower's internal state
 		var e *emptypb.Empty = new(emptypb.Empty)
 		state, _ := client.GetInternalState(ctx, e)
-		// if errs != nil {
-		// 	fmt.Println("Get internal state failed: ", errs.Error())
-		// }
-		// if state == nil {
-		// 	fmt.Println("Follower internal state nil")
-		// }
 
 		if state != nil && int64(len(state.Log) - 1) >= s.nextIndex[idx] {
 			entries = s.log[s.nextIndex[idx]:]
